@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for
 from model import db, Page, ChildLink
 from spider import crawl
+from threading import Thread
 
 URL = "https://www.cse.ust.hk/~kwtleung/COMP4321/testpage.htm"
 
@@ -25,8 +26,7 @@ def index():
 
 @app.route('/start', methods=['POST'])
 def start_crawl():
-    # Thread(target=crawl, args=(url,)).start()
-    crawl(URL)
+    Thread(target=lambda: app.app_context().push() or crawl(URL)).start()
     return redirect(url_for('index'))
 
 @app.route('/clear_database', methods=['POST'])

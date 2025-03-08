@@ -2,8 +2,11 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 from collections import deque, Counter
-from model import db, Page, ChildLink
+from model import db, Page, ChildLink, TitleInvertedIndex, BodyInvertedIndex
+from indexer import stemmer
 import re
+STOP_WORDS = set()
+from indexer import STOP_WORDS, stemmer, process_terms, update_inverted_index
 
 
 def crawl(start_url):
@@ -34,22 +37,38 @@ def crawl(start_url):
         last_modified = response.headers.get('Last-Modified', 'N/A')
 
         #have to modifed (e.g. idk why it treat "s" as a word)
-        text = soup.get_text()
-        words = re.findall(r'\w+', text.lower())
+        # Process title text
+        title_terms = re.findall(r'\w+', title.lower())
+        title_stems = []
+        title_positions = {}
+        
+        # Process body text
+        body = soup.find('body')
+        body_text = body.get_text() if body else ''
+        body_terms = re.findall(r'\w+', body_text.lower())
+        body_stems = []
+        body_positions = {}
+        
+        # Process terms with stemming and position tracking
 
-
-        size = len(words)
-        word_counts = Counter(words)
-        top_keywords = word_counts.most_common(10)
-        keywords_str = '; '.join([f"{word} {count}" for word, count in top_keywords])
-
+        title_stems, title_positions = process_terms(title_terms)
+        body_stems, body_positions = process_terms(body_terms)
+        
         page = Page(
             url=url,
             title=title,
             last_modified=last_modified,
-            size=size,
-            keywords=keywords_str
+            size=len(body_terms),  # Original word count before processing
+            keywords='',  # Deprecated field
+            title_stems={"stems": title_stems, "positions": title_positions},
+            body_stems={"stems": body_stems, "positions": body_positions}
         )
+        
+        # Create inverted index entries
+
+        db.session.flush()  # Get page ID
+        update_inverted_index(title_positions, page.id, TitleInvertedIndex)
+        update_inverted_index(body_positions, page.id, BodyInvertedIndex)
         db.session.add(page)
         db.session.commit()
 
