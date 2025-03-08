@@ -8,11 +8,11 @@ class Page(db.Model):
     title = db.Column(db.String(256))
     last_modified = db.Column(db.String(128))
     size = db.Column(db.Integer)
-    keywords = db.Column(db.Text)
+    keywords = db.Column(db.JSON)
     title_stems = db.Column(db.JSON)  # Stores stemmed title terms with positions
     body_stems = db.Column(db.JSON)   # Stores stemmed body terms with positions
 
-    children = db.relationship('ChildLink', backref='parent', lazy='dynamic')
+    children = db.relationship('ChildLink', lazy='dynamic')
 
 class ChildLink(db.Model):
     id = db.Column(db.Integer, primary_key=True)

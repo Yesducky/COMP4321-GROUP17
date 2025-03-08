@@ -36,7 +36,6 @@ def crawl(start_url):
         title = soup.title.string if soup.title else 'No Title'
         last_modified = response.headers.get('Last-Modified', 'N/A')
 
-        #have to modifed (e.g. idk why it treat "s" as a word)
         # Process title text
         title_terms = re.findall(r'\w+', title.lower())
         title_stems = []
@@ -50,26 +49,29 @@ def crawl(start_url):
         body_positions = {}
         
         # Process terms with stemming and position tracking
-
         title_stems, title_positions = process_terms(title_terms)
         body_stems, body_positions = process_terms(body_terms)
+
+        # Calculate top 10 most frequent stemmed keywords from body text
+        body_stem_freq = {stem: len(positions) for stem, positions in body_positions.items()}
+        top_keywords = Counter(body_stem_freq).most_common(10)
         
         page = Page(
             url=url,
             title=title,
             last_modified=last_modified,
             size=len(body_terms),  # Original word count before processing
-            keywords='',  # Deprecated field
+            keywords=[{"stem": stem, "frequency": freq} for stem, freq in top_keywords],
             title_stems={"stems": title_stems, "positions": title_positions},
             body_stems={"stems": body_stems, "positions": body_positions}
         )
         
         # Create inverted index entries
 
-        db.session.flush()  # Get page ID
+        db.session.add(page)
+        db.session.flush()  # Get page ID after adding to session
         update_inverted_index(title_positions, page.id, TitleInvertedIndex)
         update_inverted_index(body_positions, page.id, BodyInvertedIndex)
-        db.session.add(page)
         db.session.commit()
 
         # Extract and save child links

@@ -12,16 +12,17 @@ db.init_app(app)
 
 @app.cli.command('init-db')
 def initialize_database():
+    db.drop_all()
     db.create_all()
 
 @app.route('/')
 def index():
     pages = Page.query.all()
     page_parent_map = {}
-    # for page in pages:
-    #     all_parents = ChildLink.query.filter_by(child_url=page.url).all()
-    #     parents = [Page.query.get(p.parent_id) for p in all_parents]
-    #     page_parent_map[page.url] = parents
+    for page in pages:
+        all_parents = ChildLink.query.filter_by(child_url=page.url).all()
+        parents = [Page.query.get(p.parent_id) for p in all_parents]
+        page_parent_map[page.url] = parents
     return render_template('index.html', pages=pages, page_parent_map=page_parent_map)
 
 @app.route('/start', methods=['POST'])
