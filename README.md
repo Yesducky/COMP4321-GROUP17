@@ -8,10 +8,18 @@ python -m venv venv
 ```
 
 2. **Activate & Install Dependencies**
+
+**Linux/MacOS**
 ```bash
 source venv/bin/activate
 chmod +x setup.sh
 ./setup.sh
+```
+**Windows**
+```bash
+venv\Scripts\activate
+pip install -r requirements.txt
+python -c "import nltk; nltk.download('punkt')"
 ```
 
 3. **Initialize Database**

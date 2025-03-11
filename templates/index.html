@@ -2,6 +2,20 @@
 <html>
 <head>
     <title>Comp4321 Group17</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script type="text/javascript">
+        document.addEventListener("DOMContentLoaded", function() {
+            var socket = io();
+            socket.on('update', function(msg) {
+                console.log(msg.data);
+                location.reload();
+            });
+        });
+
+        window.onload = function() {
+            window.scrollTo(0, document.body.scrollHeight);
+        };
+    </script>
 </head>
 <body>
     <h1>Comp4321</h1>

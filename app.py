@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for
+from flask_socketio import SocketIO, emit
 from model import db, Page, ChildLink
 from spider import crawl
 from threading import Thread
@@ -9,6 +10,7 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
+socketio = SocketIO(app)
 
 @app.cli.command('init-db')
 def initialize_database():
@@ -27,7 +29,11 @@ def index():
 
 @app.route('/start', methods=['POST'])
 def start_crawl():
-    Thread(target=lambda: app.app_context().push() or crawl(URL)).start()
+    def crawl_and_notify():
+        app.app_context().push()
+        crawl(URL, socketio)
+
+    Thread(target=crawl_and_notify).start()
     return redirect(url_for('index'))
 
 @app.route('/clear_database', methods=['POST'])
@@ -35,7 +41,8 @@ def clear_database():
     db.session.query(ChildLink).delete()
     db.session.query(Page).delete()
     db.session.commit()
+    socketio.emit('update', {'data': 'Database cleared'})
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    socketio.run(app, debug=True)
