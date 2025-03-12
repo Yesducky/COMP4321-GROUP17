@@ -1,3 +1,4 @@
+# indexer.py
 import re
 from nltk.stem import PorterStemmer
 from model import db, BodyInvertedIndex, TitleInvertedIndex
@@ -20,11 +21,14 @@ def process_terms(terms):
         positions[stem].append(pos)
     return stems, positions
 
-def update_inverted_index(stem_map, page_id, index_class):
+def update_inverted_index(stem_map, page_id, index_class, session=None):
+    # Use provided session or default to db.session
+    session = session or db.session
     for stem, positions in stem_map.items():
-        index_entry = index_class.query.filter_by(stem=stem, page_id=page_id).first()
+        # Use session.query instead of class.query
+        index_entry = session.query(index_class).filter_by(stem=stem, page_id=page_id).first()
         if not index_entry:
             index_entry = index_class(stem=stem, page_id=page_id, positions=[], frequency=0)
-            db.session.add(index_entry)
+            session.add(index_entry)
         index_entry.positions.extend(positions)
         index_entry.frequency += len(positions)

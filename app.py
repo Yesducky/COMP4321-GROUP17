@@ -3,6 +3,8 @@ from flask_socketio import SocketIO, emit
 from model import db, Page, ChildLink
 from spider import crawl
 from threading import Thread
+import time
+from sqlalchemy.pool import NullPool
 
 URL = "https://comp4321-hkust.github.io/testpages/ust_cse.htm"
 is_crawling = False
@@ -10,8 +12,12 @@ is_crawling = False
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'poolclass': NullPool,
+    'connect_args': {'timeout': 30}  # Increase timeout
+}
 db.init_app(app)
-socketio = SocketIO(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 @app.cli.command('init-db')
 def initialize_database():
@@ -37,10 +43,10 @@ def start_crawl():
             print(is_crawling)
             crawl(URL, socketio)
             is_crawling = False
-            print(is_crawling)
-
+            time.sleep(2)
+            socketio.emit('update', {'data': 'Crawling completed'})
     Thread(target=crawl_and_notify).start()
-    return redirect(url_for('index'))
+    return redirect(url_for('spider'))
 
 @app.route('/clear_database', methods=['POST'])
 def clear_database():
@@ -48,7 +54,7 @@ def clear_database():
     db.session.query(Page).delete()
     db.session.commit()
     socketio.emit('update', {'data': 'Database cleared'})
-    return redirect(url_for('index'))
+    return redirect(url_for('spider'))
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)

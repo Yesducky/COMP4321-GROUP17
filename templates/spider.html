@@ -8,6 +8,7 @@
             var socket = io();
             socket.on('update', function(msg) {
                 location.reload();
+                console.log(msg);
             });
         });
         //
