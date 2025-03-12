@@ -8,13 +8,14 @@ import re
 STOP_WORDS = set()
 from indexer import STOP_WORDS, stemmer, process_terms, update_inverted_index
 
+# spider.py
 def crawl(start_url, socketio):
     domain = urlparse(start_url).netloc
-    queue = deque([start_url])
+    queue = deque([(start_url, None)])
     visited = set()
 
     while queue:
-        url = queue.popleft()
+        url, parent_id = queue.popleft()
 
         if url in visited:
             continue
@@ -25,7 +26,7 @@ def crawl(start_url, socketio):
             continue
 
         try:
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, timeout=100)
             response.raise_for_status()
         except:
             continue
@@ -56,7 +57,8 @@ def crawl(start_url, socketio):
             size=len(body_terms),  # Original word count before processing
             keywords=[{"stem": stem, "frequency": freq} for stem, freq in top_keywords],
             title_stems={"stems": title_stems, "positions": title_positions},
-            body_stems={"stems": body_stems, "positions": body_positions}
+            body_stems={"stems": body_stems, "positions": body_positions},
+            parent_id=parent_id
         )
 
         # Create inverted index entries
@@ -67,7 +69,7 @@ def crawl(start_url, socketio):
         db.session.commit()
 
         # Emit event to update web interface
-        socketio.emit('update', {'data': 'Page added'})
+        socketio.emit('update', {'data': 'Page added: ' + url})
 
         # Extract and save child links
         links = set()
@@ -78,8 +80,5 @@ def crawl(start_url, socketio):
                 links.add(absolute_url)
 
         for link in links:
-            db.session.add(ChildLink(parent_id=page.id, child_url=link))
-        db.session.commit()
+            queue.append((link, page.id))
 
-        # Add new links to queue
-        queue.extend([link for link in links if link not in visited])

@@ -11,8 +11,8 @@ class Page(db.Model):
     keywords = db.Column(db.JSON)
     title_stems = db.Column(db.JSON)  # Stores stemmed title terms with positions
     body_stems = db.Column(db.JSON)   # Stores stemmed body terms with positions
-
-    children = db.relationship('ChildLink', lazy='dynamic')
+    parent_id = db.Column(db.Integer, db.ForeignKey('page.id'), nullable=True)
+    children = db.relationship('Page', backref=db.backref('parent', remote_side=[id]), lazy=True)
 
 class ChildLink(db.Model):
     id = db.Column(db.Integer, primary_key=True)

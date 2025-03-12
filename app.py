@@ -4,7 +4,8 @@ from model import db, Page, ChildLink
 from spider import crawl
 from threading import Thread
 
-URL = "https://www.cse.ust.hk/~kwtleung/COMP4321/testpage.htm"
+URL = "https://comp4321-hkust.github.io/testpages/ust_cse.htm"
+is_crawling = False
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
@@ -19,19 +20,24 @@ def initialize_database():
 
 @app.route('/')
 def index():
+    # return render_template('index.html')
+    return redirect(url_for('spider'))
+
+@app.route('/spider')
+def spider():
     pages = Page.query.all()
-    page_parent_map = {}
-    for page in pages:
-        all_parents = ChildLink.query.filter_by(child_url=page.url).all()
-        parents = [Page.query.get(p.parent_id) for p in all_parents]
-        page_parent_map[page.url] = parents
-    return render_template('index.html', pages=pages, page_parent_map=page_parent_map)
+    return render_template('spider.html', pages=pages, crawling_url = URL, is_crawling = is_crawling)
 
 @app.route('/start', methods=['POST'])
 def start_crawl():
     def crawl_and_notify():
-        app.app_context().push()
-        crawl(URL, socketio)
+        global is_crawling
+        with app.app_context():
+            is_crawling = True
+            print(is_crawling)
+            crawl(URL, socketio)
+            is_crawling = False
+            print(is_crawling)
 
     Thread(target=crawl_and_notify).start()
     return redirect(url_for('index'))

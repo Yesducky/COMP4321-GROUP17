@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Comp4321 Group17</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script type="text/javascript">
+        document.addEventListener("DOMContentLoaded", function() {
+            var socket = io();
+            socket.on('update', function(msg) {
+                location.reload();
+            });
+        });
+        //
+        // window.onload = function() {
+        //     window.scrollTo(0, document.body.scrollHeight);
+        // };
+    </script>
+</head>
+<body>
+    <h1>Comp4321</h1>
+    <div>
+        <p>Page: <a href="{{crawling_url}}">{{crawling_url}}</a></p>
+        <div style="display: flex; align-items: center;">
+            <div>{% if is_crawling %}<span style="color: darkred; font-weight: bolder">Crawling</span>{% endif %}</div>
+            <form action="/start" method="post" style="margin-left: 10px;">
+                <button type="submit" {% if is_crawling %}disabled{% endif %}>Start Crawling</button>
+            </form>
+            <form action="/clear_database" method="post" style="margin-left: 10px;">
+                <button type="submit" {% if is_crawling %}disabled{% endif %}>Clear All</button>
+            </form>
+        </div>
+    </div>
+
+    {% for page in pages %}
+    <div>
+        <h3>{{ page.title }}</h3>
+        <p>URL: <a href="{{ page.url }}">{{ page.url }}</a></p>
+        <p>Last modified date: {{ page.last_modified }}, size of page: {{ page.size }} words</p>
+        <p>Keywords:
+            {% for keyword in page.keywords %}
+                <span style="color: darkred;">{{ keyword['stem'] }}</span> <span style="color: darkgreen;">{{ keyword['frequency'] }}</span>{% if not loop.last %}; {% endif %}
+            {% endfor %}
+        </p>
+        <p>Parent:
+            {% if page.parent %}
+                <a href="{{ page.parent.url }}">{{ page.parent.url }}</a>
+            {% else %}
+                None
+            {% endif %}
+        </p>
+        <p>Children:
+            {% if page.children %}
+            <ol>
+                {% for child in page.children %}
+                    <li><a href="{{ child.url }}">{{ child.url }}</a></li>
+                {% endfor %}
+            </ol>
+            {% else %}
+                None
+            {% endif %}
+        </p>
+
+        ------------------------------------------------------------------------------------
+    </div>
+    {% endfor %}
+</body>
+</html>
