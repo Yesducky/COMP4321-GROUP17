@@ -1,6 +1,7 @@
-flask
-flask-sqlalchemy
-beautifulsoup4
-requests
-nltk
-flask_socketio
+beautifulsoup4==4.13.3
+Flask==3.1.0
+Flask_SocketIO==5.5.1
+flask_sqlalchemy==3.1.1
+nltk==3.9.1
+Requests==2.32.3
+SQLAlchemy==2.0.39
