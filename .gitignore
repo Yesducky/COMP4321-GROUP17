@@ -1,0 +1,27 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyCharm IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.idea_modules/
+
+# Virtual environment
+venv/
+ENV/
+
+# Database
+*.db
+
+# Flask session files
+flask_session/
+
+# Log files
+*.log
+
+# Environment variables
+.env
