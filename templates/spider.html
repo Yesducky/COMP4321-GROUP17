@@ -29,6 +29,9 @@
             <form action="/clear_database" method="post" style="margin-left: 10px;">
                 <button type="submit" {% if is_crawling %}disabled{% endif %}>Clear All</button>
             </form>
+            <form action="/phase1" method="post" style="margin-left: 10px;">
+                <button type="submit" {% if length < 30 %}disabled{% endif %}>Phase 1: Output 30 records to spider_result.txt</button>
+            </form>
         </div>
     </div>
 

@@ -5,8 +5,9 @@ from spider import crawl
 from threading import Thread
 import time
 from sqlalchemy.pool import NullPool
+from phase1 import output_records_to_txt
 
-URL = "https://comp4321-hkust.github.io/testpages/ust_cse.htm"
+URL = "https://comp4321-hkust.github.io/testpages/testpage.htm"
 is_crawling = False
 
 app = Flask(__name__)
@@ -32,7 +33,8 @@ def index():
 @app.route('/spider')
 def spider():
     pages = Page.query.all()
-    return render_template('spider.html', pages=pages, crawling_url = URL, is_crawling = is_crawling)
+    length = db.session.query(Page).count()
+    return render_template('spider.html', pages=pages, crawling_url = URL, is_crawling = is_crawling, length = length)
 
 @app.route('/start', methods=['POST'])
 def start_crawl():
@@ -54,6 +56,11 @@ def clear_database():
     db.session.query(Page).delete()
     db.session.commit()
     socketio.emit('update', {'data': 'Database cleared'})
+    return redirect(url_for('spider'))
+
+@app.route('/phase1', methods=['POST'])
+def phase1():
+    output_records_to_txt()
     return redirect(url_for('spider'))
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-# COMP4321 Search Engine Project
+# COMP4321 Search Engine Project - Group 17
 
 ## Setup Instructions
 
@@ -33,9 +33,13 @@ python app.py
 ```
 
 ## Accessing the Web Interface
-- The search engine interface will be available at: http://localhost:5000
+- The search engine interface will be available at: http://localhost:5000/, which will automatically redirect to the spider page http://localhost:5000/spider
 - Click "Clear All" to clear all indexed pages
 - Click "Start Crawl" to begin indexing pages
+- The web page will automatically refresh every new page crawled (manually refresh if needed)
+
+## Phase 1
+- In the Web Interface, click "Phase 1" button to output 30 records to `spider_result.txt` in project root after at least 30 pages have been crawled
 
 ## Important Notes
 - Ensure `stopwords.txt` exists in project root
