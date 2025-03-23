@@ -1,4 +1,3 @@
-# indexer.py
 import re
 from nltk.stem import PorterStemmer
 from model import db, BodyInvertedIndex, TitleInvertedIndex
