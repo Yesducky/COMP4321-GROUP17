@@ -11,10 +11,9 @@ def output_records_to_txt(file_path='spider_result.txt'):
             f.write("Keywords: ")
             keywords = [f"{keyword['stem']} ({keyword['frequency']})" for keyword in page.keywords]
             f.write("; ".join(keywords) + "\n")
-            f.write(f"Parent {page.parent.url if page.parent else 'None'}\n")
+            if page.parent:
+                f.write(f"Parent {page.parent.url}\n")
             if page.children:
                 children_urls = [child.url for child in page.children]
                 f.write("\n".join(f"Child {url}" for url in children_urls) + "\n")
-            else:
-                f.write("None\n")
             f.write("------------------------------------------------------------------------------------\n")

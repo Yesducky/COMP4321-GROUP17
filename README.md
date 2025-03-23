@@ -46,3 +46,4 @@ python app.py
 - Server may take several minutes to index pages after starting crawl
 - Use Chrome/Firefox for best compatibility
 - Monitor terminal output for crawl progress
+- Program is tested to be fine under Python 3.12.0

@@ -14,11 +14,6 @@ class Page(db.Model):
     parent_id = db.Column(db.Integer, db.ForeignKey('page.id'), nullable=True)
     children = db.relationship('Page', backref=db.backref('parent', remote_side=[id]), lazy=True)
 
-class ChildLink(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    parent_id = db.Column(db.Integer, db.ForeignKey('page.id'))
-    child_url = db.Column(db.String(1024))
-
 class BodyInvertedIndex(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     stem = db.Column(db.String(100), index=True)
