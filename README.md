@@ -37,7 +37,7 @@ python app.py
 - Click "Clear All" to clear all indexed pages
 - Click "Start Crawl" to begin indexing pages
 - The web page will automatically refresh every new page crawled (manually refresh if needed)
-
+![img.png](img.png)
 ## Phase 1
 - In the Web Interface, click "Phase 1" button to output 30 records to `spider_result.txt` in project root after at least 30 pages have been crawled
 
