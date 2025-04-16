@@ -1,8 +1,20 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Comp4321 Group17</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <title>Web Spider - COMP4321</title>
+    <style>
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
     <script type="text/javascript">
         document.addEventListener("DOMContentLoaded", function() {
             var socket = io();
@@ -11,61 +23,106 @@
                 console.log(msg);
             });
         });
-        //
-        // window.onload = function() {
-        //     window.scrollTo(0, document.body.scrollHeight);
-        // };
     </script>
 </head>
-<body>
-    <h1>Comp4321</h1>
-    <div>
-        <p>Page: <a href="{{crawling_url}}">{{crawling_url}}</a></p>
-        <div style="display: flex; align-items: center;">
-            <div>{% if is_crawling %}<span style="color: darkred; font-weight: bolder">Crawling</span>{% endif %}</div>
-            <form action="/start" method="post" style="margin-left: 10px;">
-                <button type="submit" {% if is_crawling %}disabled{% endif %}>Start Crawling</button>
-            </form>
-            <form action="/clear_database" method="post" style="margin-left: 10px;">
-                <button type="submit" {% if is_crawling %}disabled{% endif %}>Clear All</button>
-            </form>
-            <form action="/phase1" method="post" style="margin-left: 10px;">
-                <button type="submit" {% if length < 30 %}disabled{% endif %}>Phase 1: Output 30 records to spider_result.txt</button>
-            </form>
+<body class="flex text-[#003366] h-screen overflow-hidden">
+    <!-- Background image with blur effect -->
+    <div class="absolute inset-0 z-0">
+        <img src="https://join.hkust.edu.hk/sites/default/files/2020-06/hkust.jpg" class="w-full h-full object-cover" alt="HKUST Background">
+        <div class="absolute inset-0 bg-white/80 backdrop-blur"></div>
+    </div>
+
+    <!-- Navigation bar at top -->
+    <div class="top-0 left-0 w-full h-fit z-10 absolute flex p-8">
+        <a href="/" class="text-3xl font-bold flex items-center">COMP4321 Search Engine - Group 17</a>
+        <div class="mr-0 ml-auto flex">
+            <a href="/" class="px-4 py-2 mr-4 hover:text-[#996600] rounded transition duration-200 font-extrabold">
+                Home
+            </a>
         </div>
     </div>
 
-    {% for page in pages %}
-    <div>
-        <h3>{{ page.title }}</h3>
-        <p>URL: <a href="{{ page.url }}">{{ page.url }}</a></p>
-        <p>Last modified date: {{ page.last_modified }}, size of page: {{ page.size }} words</p>
-        <p>Keywords:
-            {% for keyword in page.keywords %}
-                <span style="color: darkred;">{{ keyword['stem'] }}</span> <span style="color: darkgreen;">{{ keyword['frequency'] }}</span>{% if not loop.last %}; {% endif %}
-            {% endfor %}
-        </p>
-        <p>Parent:
-            {% if page.parent %}
-                <a href="{{ page.parent.url }}">{{ page.parent.url }}</a>
-            {% else %}
-                None
-            {% endif %}
-        </p>
-        <p>Children:
-            {% if page.children %}
-            <ol>
-                {% for child in page.children %}
-                    <li><a href="{{ child.url }}">{{ child.url }}</a></li>
-                {% endfor %}
-            </ol>
-            {% else %}
-                None
-            {% endif %}
-        </p>
-
-        ------------------------------------------------------------------------------------
+    <!-- Spider controls -->
+    <div class="absolute z-5 w-full top-24 pt-4 flex justify-center">
+        <div class="w-[80%] bg-white/80 rounded-lg shadow-lg p-6 mb-4">
+            <div class="flex items-center flex-wrap gap-4">
+                <p class="font-semibold">Crawling URL: <a href="{{crawling_url}}" class="text-blue-700 hover:underline">{{crawling_url}}</a></p>
+                <div class="flex items-center ml-auto">
+                    {% if is_crawling %}<span class="text-red-700 font-bold mr-4">Crawling in progress...</span>{% endif %}
+                    <form action="/start" method="post" class="mr-2">
+                        <button type="submit" {% if is_crawling %}disabled{% endif %}
+                            class="bg-[#003366] hover:bg-[#996600] text-white px-4 py-2 rounded transition duration-200 {% if is_crawling %}opacity-50 cursor-not-allowed{% endif %}">
+                            Start Crawl
+                        </button>
+                    </form>
+                    <form action="/clear_database" method="post" class="mr-2">
+                        <button type="submit" {% if is_crawling %}disabled{% endif %}
+                            class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition duration-200 {% if is_crawling %}opacity-50 cursor-not-allowed{% endif %}">
+                            Clear All
+                        </button>
+                    </form>
+                    <form action="/phase1" method="post">
+                        <button type="submit" {% if length < 30 %}disabled{% endif %}
+                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition duration-200 {% if length < 30 %}opacity-50 cursor-not-allowed{% endif %}">
+                            Phase 1 Output
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
-    {% endfor %}
+
+    <!-- Page listing container -->
+    <div class="absolute z-5 w-full top-48 pt-4 flex justify-center">
+        <div class="w-[80%] bg-white/80 rounded-lg shadow-lg p-6 max-h-[calc(100vh-13rem)] overflow-y-auto scrollbar-hide mb-8">
+            {% if pages %}
+                <p class="text-lg mb-4">Indexed Pages: <span class="font-semibold">{{ length }}</span></p>
+
+                {% for page in pages %}
+                    <div class="mb-6 pb-4 border-b border-gray-200">
+                        <div class="mb-1">
+                            <a href="{{ page.url }}" target="_blank" class="text-lg font-semibold text-blue-700 hover:underline">{{ page.title }}</a>
+                        </div>
+                        <div class="text-green-700 text-sm mb-2 truncate">{{ page.url }}</div>
+                        <div class="text-gray-600 text-sm mb-2">
+                            Size: {{ page.size }} words |
+                            Last Modified: {{ page.last_modified }}
+                        </div>
+                        <div class="text-sm mb-2">
+                            <span class="font-semibold">Keywords:</span>
+                            {% for keyword in page.keywords %}
+                                <span class="text-red-700">{{ keyword['stem'] }}</span> <span class="text-green-700">({{ keyword['frequency'] }})</span>{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        </div>
+                        <div class="text-sm mb-2">
+                            <span class="font-semibold">Parent:</span>
+                            {% if page.parent %}
+                                <a href="{{ page.parent.url }}" class="text-blue-600 hover:underline">{{ page.parent.url }}</a>
+                            {% else %}
+                                None
+                            {% endif %}
+                        </div>
+                        {% if page.children %}
+                            <div class="text-sm">
+                                <span class="font-semibold">Children:</span>
+                                <ul class="list-disc ml-5 mt-1">
+                                    {% for child in page.children %}
+                                        <li><a href="{{ child.url }}" class="text-blue-600 hover:underline">{{ child.url }}</a></li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% else %}
+                            <div class="text-sm">
+                                <span class="font-semibold">Children:</span> None
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+
+            {% else %}
+                <p class="text-lg text-center py-8">No pages have been indexed yet. Click "Start Crawl" to begin.</p>
+            {% endif %}
+        </div>
+    </div>
 </body>
 </html>

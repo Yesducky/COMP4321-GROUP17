@@ -6,6 +6,7 @@ from threading import Thread
 import time
 from sqlalchemy.pool import NullPool
 from phase1 import output_records_to_txt
+from indexer import search
 
 URL = "https://comp4321-hkust.github.io/testpages/testpage.htm"
 is_crawling = False
@@ -27,8 +28,17 @@ def initialize_database():
 
 @app.route('/')
 def index():
-    # return render_template('index.html')
-    return redirect(url_for('spider'))
+    return render_template('index.html')
+    # return redirect(url_for('spider'))
+
+@app.route('/search')
+def search_page():
+    query = request.args.get('query', '')
+    if not query:
+        return render_template('search.html', results=None)
+
+    results = search(query)
+    return render_template('search.html', results=results, query=query)
 
 @app.route('/spider')
 def spider():
