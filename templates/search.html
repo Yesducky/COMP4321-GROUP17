@@ -4,21 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
-    <title>Search Results - COMP4321</title>
+    <title>Search</title>
 </head>
 <body class="flex text-[#003366] h-screen overflow-hidden">
     <div class="absolute inset-0 z-0">
         <img src="https://join.hkust.edu.hk/sites/default/files/2020-06/hkust.jpg" class="w-full h-full object-cover" alt="HKUST Background">
         <div class="absolute inset-0 bg-white/80 backdrop-blur"></div>
     </div>
-    <div class="bg-gray-100/40 top-0 left-0 w-full h-[15%] z-10 absolute flex py-3 px-12">
+
+    <div class="top-0 left-0 w-full h-[15%] z-10 absolute flex py-3 px-[7%]">
         <a href="/" class="text-2xl font-bold flex w-fit items-center hover:text-[#996600]">COMP4321 Search Engine - Group 17</a>
         <div class="w-[50%] mr-0 ml-auto flex items-center">
-            <form action="/search" method="get" class="flex items-center w-full shadow-lg rounded-full overflow-hidden">
+            <form action="/search" method="get"  class="flex items-center w-full shadow-lg rounded-full overflow-hidden" onsubmit="return validateForm()">
                 <input
                     type="text"
                     name="query"
                     placeholder="Enter your search query"
+                    id="search-query"
                     value="{{ query or '' }}"
                     class="flex-grow px-6 py-4 focus:outline-none"
                     autocomplete="off"
@@ -35,26 +37,50 @@
     </div>
 
     <div class="absolute z-5 h-[85%] w-full top-[15%] flex justify-center">
-        <div class="w-full rounded-lg shadow-lg p-6 pl-12 h-full overflow-y-auto">
+        <div class="w-full rounded-lg shadow-lg p-6 px-[7%] h-full overflow-y-auto">
             {% if results %}
                 <p class="text-lg mb-4">Found {{ results|length }} results for "<span class="font-semibold">{{ query }}</span>"</p>
 
                 {% for page, score in results %}
-                    <div class="mb-6 pb-4">
-                        <div class="mb-1">
-                            <a href="{{ page.url }}" target="_blank" class="text-lg font-semibold text-blue-700 hover:underline">{{ page.title }}</a>
-                        </div>
-                        <div class="text-green-700 text-sm mb-2 truncate">{{ page.url }}</div>
-                        <div class="text-gray-600 text-sm mb-2">
-                            Size: {{ page.size }} words |
-                            Last Modified: {{ page.last_modified }} |
-                            Score: {{ score }}
-                        </div>
-                        <div class="text-sm">
-                            <span class="font-semibold">Keywords:</span>
-                            {% for keyword in page.keywords[:5] %}
-                                {{ keyword.stem }} ({{ keyword.frequency }}){% if not loop.last %}, {% endif %}
-                            {% endfor %}
+                    <div class="mb-6 pb-4 border-b border-gray-200">
+                        <div class="flex mb-4">
+                            <div class="mb-2 mr-6 w-[7%]">
+                                <span class="text-lg">Score: {{ score|round(3) }}</span>
+                            </div>
+                            <div>
+                                <div class="mb-2">
+                                    <a href="{{ page.url }}" target="_blank" class="text-lg font-semibold text-blue-700 hover:underline">{{ page.title }}</a>
+                                </div>
+                                <div class="text-green-700 text-sm mb-2 truncate">{{ page.url }}</div>
+                                <div class="text-gray-600 text-sm mb-2">
+                                    Last Modified: {{ page.last_modified }} | Size: {{ page.size }} words
+                                </div>
+                                <div class="text-sm mb-2">
+                                    {% for keyword in page.keywords %}
+                                        {{ keyword[0] }} ({{ keyword[1] }}){% if not loop.last %}; {% endif %}
+                                    {% endfor %}
+                                </div>
+
+                                {% if page.parent %}
+                                <div class="text-sm mb-2">
+                                    <div class="font-semibold">Parent link:</div>
+                                    <a href="{{ page.parent.url }}" class="text-blue-600 hover:underline">{{ page.parent.title }}</a>
+                                </div>
+                                {% endif %}
+
+                                {% if page.children %}
+                                <div class="text-sm">
+                                    <div class="font-semibold">Child links:</div>
+                                    <ul class="pl-5 list-disc">
+                                        {% for child in page.children %}
+                                        <li>
+                                            <a href="{{ child.url }}" class="text-blue-600 hover:underline">{{ child.title }}</a>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 {% endfor %}
@@ -65,4 +91,13 @@
         </div>
     </div>
 </body>
+<script>
+function validateForm() {
+    const query = document.getElementById('search-query').value.trim();
+    if (!query) {
+        return false;
+    }
+    return true;
+}
+</script>
 </html>

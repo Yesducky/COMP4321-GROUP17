@@ -1,11 +1,17 @@
 import re
+import math
 from nltk.stem import PorterStemmer
-from model import db, BodyInvertedIndex, TitleInvertedIndex, Page
+from model import db, BodyInvertedIndex, TitleInvertedIndex, DocumentStats, Page
+from collections import defaultdict
+from nltk.util import ngrams
+import shlex
+
 
 STOP_WORDS = set()
 with open('stopwords.txt', 'r') as f:
     STOP_WORDS = {line.strip().lower() for line in f if line.strip()}
 stemmer = PorterStemmer()
+
 
 def process_terms(terms):
     stems = []
@@ -20,56 +26,85 @@ def process_terms(terms):
         positions[stem].append(pos)
     return stems, positions
 
-def update_inverted_index(stem_map, page_id, index_class, session=None):
-    # Use provided session or default to db.session
-    session = session or db.session
+
+def update_stats(stem_map, index_type, session):
+    for stem in stem_map.keys():
+        stats = session.query(DocumentStats).filter_by(stem=stem).first()
+        if not stats:
+            stats = DocumentStats(stem=stem, df_title=0, df_body=0)
+            session.add(stats)
+
+        if index_type == 'title':
+            stats.df_title += 1
+        else:
+            stats.df_body += 1
+
+
+def update_inverted_index(stem_map, page_id, index_class, session):
+    max_freq = 0
     for stem, positions in stem_map.items():
-        # Use session.query instead of class.query
         index_entry = session.query(index_class).filter_by(stem=stem, page_id=page_id).first()
+        freq = len(positions)
+        max_freq = max(max_freq, freq)
+
         if not index_entry:
-            index_entry = index_class(stem=stem, page_id=page_id, positions=[], frequency=0)
+            index_entry = index_class(stem=stem, page_id=page_id, positions=positions, frequency=freq)
             session.add(index_entry)
-        index_entry.positions.extend(positions)
-        index_entry.frequency += len(positions)
+        else:
+            index_entry.positions.extend(positions)
+            index_entry.frequency += freq
+
+    # Update max term frequency for the page
+    page = session.query(Page).get(page_id)
+    if index_class == TitleInvertedIndex:
+        page.max_tf_title = max(page.max_tf_title, max_freq)
+    else:
+        page.max_tf_body = max(page.max_tf_body, max_freq)
+    session.add(page)
 
 
-def search(query_string, session=None):
-    session = session or db.session
+def parse_query(query):
+    explicit_phrases = []
+    remaining_terms = []
 
-    # Tokenize and stem the query
-    query_terms = re.findall(r'\w+', query_string.lower())
-    query_stems = [stemmer.stem(term) for term in query_terms if term not in STOP_WORDS]
+    lexer = shlex.shlex(query, posix=True)
+    lexer.whitespace_split = True
+    in_phrase = False
+    current_phrase = []
 
-    # Calculate document scores using tf-idf approach
-    doc_scores = {}
+    try:
+        while True:
+            token = lexer.get_token()
+            if token == lexer.eof:
+                break
+            if token == '"':
+                if in_phrase:
+                    explicit_phrases.append(' '.join(current_phrase).lower())
+                    current_phrase = []
+                in_phrase = not in_phrase
+            elif in_phrase:
+                current_phrase.append(token.lower())
+            else:
+                remaining_terms.append(token.lower())
+    except ValueError:
+        pass
 
-    # Get all documents that contain any query term
-    title_matches = session.query(TitleInvertedIndex).filter(TitleInvertedIndex.stem.in_(query_stems)).all()
-    body_matches = session.query(BodyInvertedIndex).filter(BodyInvertedIndex.stem.in_(query_stems)).all()
+    # all_terms = []
+    # for phrase in explicit_phrases:
+    #     all_terms.extend(re.findall(r'\w+', phrase))
+    # all_terms.extend(remaining_terms)
 
-    # Calculate scores for title matches (with higher weight)
-    for match in title_matches:
-        if match.page_id not in doc_scores:
-            doc_scores[match.page_id] = 0
-        # Apply higher weight to title matches
-        doc_scores[match.page_id] += match.frequency * 2
+    terms = [t for t in remaining_terms if t not in STOP_WORDS]
+    ngram_phrases = []
 
-    # Calculate scores for body matches
-    for match in body_matches:
-        if match.page_id not in doc_scores:
-            doc_scores[match.page_id] = 0
-        doc_scores[match.page_id] += match.frequency
+    for n in [2, 3]:
+        for gram in ngrams(terms, n):
+            ngram_phrases.append(' '.join(gram))
 
-    # Get the top 10 matching pages
-    top_page_ids = sorted(doc_scores.keys(), key=lambda pid: doc_scores[pid], reverse=True)[:10]
+    all_phrases = list(set(explicit_phrases + ngram_phrases))
 
-    if not top_page_ids:
-        return []
+    final_terms = [
+        t for t in terms
+    ]
 
-    # Fetch the actual page details
-    top_pages = session.query(Page).filter(Page.id.in_(top_page_ids)).all()
-
-    # Sort the results by score
-    result_pages = sorted(top_pages, key=lambda p: doc_scores[p.id], reverse=True)
-
-    return [(page, doc_scores[page.id]) for page in result_pages]
+    return [('phrase', p) for p in all_phrases] + [('term', t) for t in final_terms]

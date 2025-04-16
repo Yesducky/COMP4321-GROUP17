@@ -6,37 +6,45 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <title>COMP4321 Search Engine</title>
 </head>
-<body class="flex text-[#003366]">
+<body class="text-[#003366]">
     <div class="absolute inset-0 z-0">
         <img src="https://join.hkust.edu.hk/sites/default/files/2020-06/hkust.jpg" class="w-full h-full object-cover" alt="HKUST Background">
         <div class="absolute inset-0 bg-white/80 backdrop-blur"></div>
     </div>
-    <div class="top-0 left-0 w-full h-fit z-10 absolute flex p-8">
-       <a href="/" class="text-2xl font-bold flex w-fit items-center hover:text-[#996600]">COMP4321 Search Engine - Group 17</a>
-        <a href="/spider" class="px-4 py-2 mr-0 ml-auto hover:text-[#996600] rounded transition duration-200 font-extrabold">
-            Spider
-        </a>
+
+    <div class="top-0 left-0 w-full h-[15%] z-10 absolute flex py-3 px-[7%]">
+        <a href="/" class="text-2xl font-bold flex w-fit items-center hover:text-[#996600]">COMP4321 Search Engine - Group 17</a>
+        <a href="/spider" class="text-xl mr-0 ml-auto font-bold flex w-fit items-center hover:text-[#996600]">Spider</a>
     </div>
+
     <div class="absolute z-5 w-full h-full flex items-center justify-center">
-        <div class="w-[60%]">
-            <form action="/search" method="get" class="flex shadow-lg rounded-full overflow-hidden">
-                <input
-                    type="text"
-                    name="query"
-                    placeholder="Enter your search query"
-                    class="flex-grow px-6 py-4 focus:outline-none"
-                    autocomplete="off"
-                    autocorrect="off"
-                    autocapitalize="off"
-                    spellcheck="false">
-                <button
-                    type="submit"
-                    class="bg-[#003366] hover:bg-[#996600] text-white px-6 py-4 transition duration-200">
-                    Search
-                </button>
-            </form>
-        </div>
+        <form action="/search" method="get" class="flex shadow-lg rounded-full overflow-hidden h-[10%] w-[60%] text-3xl" onsubmit="return validateForm()">
+            <input
+                type="text"
+                name="query"
+                id="search-query"
+                placeholder="Enter your search query"
+                class="flex-grow px-16 py-4 focus:outline-none"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false">
+            <button
+                type="submit"
+                class="bg-[#003366] hover:bg-[#996600] text-white w-fit px-16 py-4 transition duration-200">
+                Search
+            </button>
+        </form>
     </div>
 
 </body>
+<script>
+function validateForm() {
+    const query = document.getElementById('search-query').value.trim();
+    if (!query) {
+        return false;
+    }
+    return true;
+}
+</script>
 </html>

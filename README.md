@@ -47,3 +47,4 @@ python app.py
 - Use Chrome/Firefox for best compatibility
 - Monitor terminal output for crawl progress
 - Program is tested to be fine under Python 3.12.0
+

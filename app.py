@@ -6,7 +6,7 @@ from threading import Thread
 import time
 from sqlalchemy.pool import NullPool
 from phase1 import output_records_to_txt
-from indexer import search
+from search import search
 
 URL = "https://comp4321-hkust.github.io/testpages/testpage.htm"
 is_crawling = False

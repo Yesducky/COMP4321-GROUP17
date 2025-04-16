@@ -7,7 +7,7 @@ from threading import Lock, Thread
 from sqlalchemy.orm import sessionmaker
 from collections import Counter
 from model import db, Page, TitleInvertedIndex, BodyInvertedIndex
-from indexer import stemmer, process_terms, update_inverted_index, STOP_WORDS
+from indexer import stemmer, process_terms, update_inverted_index, STOP_WORDS, update_stats
 
 def crawl(start_url, socketio):
     domain = urlparse(start_url).netloc
@@ -25,6 +25,7 @@ def crawl(start_url, socketio):
         session = Session()
         try:
             while True:
+                item = None
                 try:
                     item = url_queue.get(timeout=5)
                     if item == poison_pill:
@@ -36,7 +37,6 @@ def crawl(start_url, socketio):
 
                 try:
                     with visited_lock:
-                        # Check both visited set and database atomically
                         if url in visited or session.query(Page).filter_by(url=url).first():
                             url_queue.task_done()
                             continue
@@ -76,18 +76,21 @@ def crawl(start_url, socketio):
                                 title=title,
                                 last_modified=last_modified,
                                 size=len(body_terms),
-                                keywords=[{"stem": stem, "frequency": freq} for stem, freq in top_keywords],
-                                title_stems={"stems": title_stems, "positions": title_positions},
-                                body_stems={"stems": body_stems, "positions": body_positions},
-                                parent_id=parent_id
+                                keywords=Counter(
+                                    {stem: len(positions) for stem, positions in body_positions.items()}).most_common(
+                                    10),
+                                parent_id=parent_id,
+                                max_tf_title=max(len(v) for v in title_positions.values()) if title_positions else 0,
+                                max_tf_body=max(len(v) for v in body_positions.values()) if body_positions else 0
                             )
-
                             session.add(page)
                             session.flush()
 
                             # Update inverted indices
                             update_inverted_index(title_positions, page.id, TitleInvertedIndex, session)
                             update_inverted_index(body_positions, page.id, BodyInvertedIndex, session)
+                            update_stats(title_positions, 'title', session)
+                            update_stats(body_positions, 'body', session)
 
                             # Extract links before committing
                             links = set()
@@ -109,12 +112,14 @@ def crawl(start_url, socketio):
                             session.rollback()
                             print(f"Database error processing {url}: {e}")
 
+
                 except requests.RequestException as e:
                     print(f"Request error for {url}: {e}")
                 except Exception as e:
                     print(f"General error processing {url}: {e}")
                 finally:
-                    url_queue.task_done()
+                    if item is not None and item != poison_pill and url not in visited:
+                        url_queue.task_done()
 
         finally:
             session.close()

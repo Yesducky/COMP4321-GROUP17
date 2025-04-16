@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <title>Web Spider - COMP4321</title>
+    <title>Spider</title>
     <style>
         .scrollbar-hide {
             -ms-overflow-style: none;
@@ -25,26 +25,39 @@
         });
     </script>
 </head>
-<body class="flex text-[#003366] h-screen overflow-hidden">
+<body class="flex text-[#003366] h-screen overflow-hidden flex-col flex">
     <!-- Background image with blur effect -->
     <div class="absolute inset-0 z-0">
         <img src="https://join.hkust.edu.hk/sites/default/files/2020-06/hkust.jpg" class="w-full h-full object-cover" alt="HKUST Background">
         <div class="absolute inset-0 bg-white/80 backdrop-blur"></div>
     </div>
 
-    <!-- Navigation bar at top -->
-    <div class="top-0 left-0 w-full h-fit z-10 absolute flex p-8">
-        <a href="/" class="text-3xl font-bold flex items-center">COMP4321 Search Engine - Group 17</a>
-        <div class="mr-0 ml-auto flex">
-            <a href="/" class="px-4 py-2 mr-4 hover:text-[#996600] rounded transition duration-200 font-extrabold">
-                Home
-            </a>
+    <div class="w-full h-[15%] z-10 flex py-3 px-[7%]">
+        <a href="/" class="text-2xl font-bold flex w-fit items-center hover:text-[#996600]">COMP4321 Search Engine - Group 17</a>
+        <div class="w-[50%] mr-0 ml-auto flex items-center">
+            <form action="/search" method="get"  class="flex items-center w-full shadow-lg rounded-full overflow-hidden" onsubmit="return validateForm()">
+                <input
+                    type="text"
+                    name="query"
+                    placeholder="Enter your search query"
+                    id="search-query"
+                    value="{{ query or '' }}"
+                    class="flex-grow px-6 py-4 focus:outline-none"
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="off"
+                    spellcheck="false">
+                <button
+                    type="submit"
+                    class="bg-[#003366] hover:bg-[#996600] text-white px-6 py-4 transition duration-200">
+                    Search
+                </button>
+            </form>
         </div>
     </div>
 
-    <!-- Spider controls -->
-    <div class="absolute z-5 w-full top-24 pt-4 flex justify-center">
-        <div class="w-[80%] bg-white/80 rounded-lg shadow-lg p-6 mb-4">
+    <div class="w-full pt-4 flex justify-center z-10">
+        <div class="w-[86%] bg-white/80 rounded-lg shadow-lg p-6 mb-4">
             <div class="flex items-center flex-wrap gap-4">
                 <p class="font-semibold">Crawling URL: <a href="{{crawling_url}}" class="text-blue-700 hover:underline">{{crawling_url}}</a></p>
                 <div class="flex items-center ml-auto">
@@ -72,9 +85,8 @@
         </div>
     </div>
 
-    <!-- Page listing container -->
-    <div class="absolute z-5 w-full top-48 pt-4 flex justify-center">
-        <div class="w-[80%] bg-white/80 rounded-lg shadow-lg p-6 max-h-[calc(100vh-13rem)] overflow-y-auto scrollbar-hide mb-8">
+    <div class="z-5 w-full pt-4 flex h-[70%] justify-center z-10">
+        <div class="w-[86%] bg-white/80 rounded-lg shadow-lg p-6 overflow-y-auto scrollbar-hide mb-8">
             {% if pages %}
                 <p class="text-lg mb-4">Indexed Pages: <span class="font-semibold">{{ length }}</span></p>
 
@@ -91,7 +103,7 @@
                         <div class="text-sm mb-2">
                             <span class="font-semibold">Keywords:</span>
                             {% for keyword in page.keywords %}
-                                <span class="text-red-700">{{ keyword['stem'] }}</span> <span class="text-green-700">({{ keyword['frequency'] }})</span>{% if not loop.last %}, {% endif %}
+                                <span class="text-red-700">{{ keyword[0] }}</span> <span class="text-green-700">({{ keyword[1] }})</span>{% if not loop.last %}, {% endif %}
                             {% endfor %}
                         </div>
                         <div class="text-sm mb-2">
@@ -125,4 +137,13 @@
         </div>
     </div>
 </body>
+<script>
+function validateForm() {
+    const query = document.getElementById('search-query').value.trim();
+    if (!query) {
+        return false;
+    }
+    return true;
+}
+</script>
 </html>

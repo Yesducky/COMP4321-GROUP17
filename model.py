@@ -9,21 +9,25 @@ class Page(db.Model):
     last_modified = db.Column(db.String(128))
     size = db.Column(db.Integer)
     keywords = db.Column(db.JSON)
-    title_stems = db.Column(db.JSON)  # Stores stemmed title terms with positions
-    body_stems = db.Column(db.JSON)   # Stores stemmed body terms with positions
     parent_id = db.Column(db.Integer, db.ForeignKey('page.id'), nullable=True)
     children = db.relationship('Page', backref=db.backref('parent', remote_side=[id]), lazy=True)
+    max_tf_title = db.Column(db.Integer, default=0)
+    max_tf_body = db.Column(db.Integer, default=0)
 
-class BodyInvertedIndex(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    stem = db.Column(db.String(100), index=True)
-    page_id = db.Column(db.Integer, db.ForeignKey('page.id'))
+class BaseIndex(db.Model):
+    __abstract__ = True
+    stem = db.Column(db.String(100), primary_key=True)
+    page_id = db.Column(db.Integer, db.ForeignKey('page.id'), primary_key=True)
     positions = db.Column(db.JSON)
     frequency = db.Column(db.Integer)
 
-class TitleInvertedIndex(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    stem = db.Column(db.String(100), index=True)
-    page_id = db.Column(db.Integer, db.ForeignKey('page.id'))
-    positions = db.Column(db.JSON)
-    frequency = db.Column(db.Integer)
+class BodyInvertedIndex(BaseIndex):
+    __tablename__ = 'body_inverted_index'
+
+class TitleInvertedIndex(BaseIndex):
+    __tablename__ = 'title_inverted_index'
+
+class DocumentStats(db.Model):
+    stem = db.Column(db.String(100), primary_key=True)
+    df_title = db.Column(db.Integer, default=0)  # Document frequency in titles
+    df_body = db.Column(db.Integer, default=0)   # Document frequency in bodies
