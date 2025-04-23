@@ -68,7 +68,11 @@
                                         {{ keyword[0] }} ({{ keyword[1] }}){% if not loop.last %}; {% endif %}
                                     {% endfor %}
                                 </div>
-
+                                <form method="post" action="/get_similar" style="display:inline">
+                                    <input type="hidden" name="page_id" value="{{ page.id }}">
+                                    <input type="hidden" name="original_query" value="{{ query }}">
+                                    <button type="submit" class="ml-2 px-3 py-1 bg-yellow-400 hover:bg-yellow-500 text-[#003366] rounded shadow text-xs font-semibold transition">Get Similar Pages</button>
+                                </form>
                                 {% if page.parent %}
                                 <div class="text-sm mb-2">
                                     <div class="font-semibold">Parent link:</div>
