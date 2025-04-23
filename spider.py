@@ -147,3 +147,4 @@ def crawl(start_url, socketio):
         final_session.commit()
     finally:
         final_session.close()
+        print("end")
