@@ -52,11 +52,15 @@ def start_crawl():
         global is_crawling
         with app.app_context():
             is_crawling = True
-            print(is_crawling)
-            crawl(URL, socketio)
-            is_crawling = False
-            time.sleep(2)
-            socketio.emit('update', {'data': 'Crawling completed'})
+            try:
+                crawl(URL, socketio)
+            except Exception as e:
+                print(f"error: {e}")
+            finally:
+                print("finished")
+                time.sleep(5)
+                is_crawling = False
+                socketio.emit('update', {'data': 'Crawling completed'})
     Thread(target=crawl_and_notify).start()
     return redirect(url_for('spider'))
 

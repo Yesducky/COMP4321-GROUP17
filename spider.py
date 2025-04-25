@@ -16,7 +16,7 @@ def crawl(start_url, socketio):
     visited = set()
     visited_lock = Lock()
     db_lock = Lock()
-    num_workers = 20
+    num_workers = 5
     poison_pill = (None, None)
 
     Session = sessionmaker(bind=db.engine)
@@ -25,22 +25,25 @@ def crawl(start_url, socketio):
         session = Session()
         try:
             while True:
-                item = None
+                url = None
+                parent_id = None
                 try:
-                    item = url_queue.get(timeout=5)
-                    if item == poison_pill:
-                        url_queue.task_done()
-                        break
-                    url, parent_id = item
-                except queue.Empty:
-                    continue
+                    # Get URL from queue with timeout
+                    url, parent_id = url_queue.get(timeout=5)
 
-                try:
+                    # Check for poison pill immediately
+                    if url is None:
+                        break
+
+                    # Process only if not already visited
                     with visited_lock:
-                        if url in visited or session.query(Page).filter_by(url=url).first():
-                            url_queue.task_done()
-                            continue
-                        visited.add(url)
+                        already_visited = url in visited or session.query(Page).filter_by(url=url).first()
+                        # Mark as visited before processing to prevent race conditions
+                        if not already_visited:
+                            visited.add(url)
+
+                    if already_visited:
+                        continue
 
                     # Fetch page content
                     response = requests.get(url, timeout=10)
@@ -60,10 +63,6 @@ def crawl(start_url, socketio):
                     body_text = body.get_text() if body else ''
                     body_terms = re.findall(r'\w+', body_text.lower())
                     body_stems, body_positions = process_terms(body_terms)
-
-                    # Calculate keywords
-                    body_stem_freq = {stem: len(positions) for stem, positions in body_positions.items()}
-                    top_keywords = Counter(body_stem_freq).most_common(10)
 
                     with db_lock:
                         try:
@@ -106,21 +105,23 @@ def crawl(start_url, socketio):
                             for link in links:
                                 url_queue.put((link, page.id))
 
-                            socketio.emit('update', {'data': 'Crawled'})
+                            socketio.emit('update', {'data': 'Crawled ' + url})
 
                         except Exception as e:
                             session.rollback()
                             print(f"Database error processing {url}: {e}")
 
-
+                except queue.Empty:
+                    # Just continue waiting for new items
+                    continue
                 except requests.RequestException as e:
                     print(f"Request error for {url}: {e}")
                 except Exception as e:
                     print(f"General error processing {url}: {e}")
                 finally:
-                    if item is not None and item != poison_pill and url not in visited:
+                    # Always mark task as done if we got a URL from the queue
+                    if url is not None:
                         url_queue.task_done()
-
         finally:
             session.close()
 
@@ -143,8 +144,11 @@ def crawl(start_url, socketio):
 
     # Final commit to ensure all data is saved
     final_session = Session()
+
     try:
         final_session.commit()
+        # No need to emit here, app.py will handle the completion message
     finally:
         final_session.close()
-        print("end")
+
+    return True
