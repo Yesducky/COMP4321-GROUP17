@@ -4,81 +4,87 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
-    <title>DeepSeek Chatbot</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <title>Chatbot</title>
+    <style>
+        @keyframes bounceInRight {0%{opacity:0;transform:translateX(60px);}60%{opacity:1;transform:translateX(-8px);}80%{transform:translateX(4px);}100%{transform:translateX(0);}}
+        @keyframes bounceInLeft {0%{opacity:0;transform:translateX(-60px);}60%{opacity:1;transform:translateX(8px);}80%{transform:translateX(-4px);}100%{transform:translateX(0);}}
+        .animate-bounce-in-right{animation:bounceInRight 0.5s;}
+        .animate-bounce-in-left{animation:bounceInLeft 0.5s;}
+
+        /* Custom styles for Markdown rendering in chat bubbles */
+        .markdown-bubble p {
+            margin-bottom: 0.5rem;
+        }
+        .markdown-bubble ul, .markdown-bubble ol {
+            margin-left: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .markdown-bubble li {
+            margin-bottom: 0.25rem;
+        }
+        .markdown-bubble strong {
+            font-weight: 600;
+        }
+        .markdown-bubble h1, .markdown-bubble h2, .markdown-bubble h3 {
+            margin-top: 0.75rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        .markdown-bubble h1 {
+            font-size: 1.25rem;
+        }
+        .markdown-bubble h2 {
+            font-size: 1.15rem;
+        }
+        .markdown-bubble h3 {
+            font-size: 1.05rem;
+        }
+        .markdown-bubble a {
+            color: #003366;
+            text-decoration: underline;
+        }
+        .markdown-bubble code {
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 0.1rem 0.3rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+        }
+        .markdown-bubble pre {
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            overflow-x: auto;
+            margin-bottom: 0.5rem;
+        }
+        .markdown-bubble pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+    </style>
 </head>
-<body class="bg-gradient-to-br from-[#e0e7ff] to-[#fef9c3] flex flex-col min-h-screen">
-    <div class="bg-[#003366] text-white py-4 px-8 flex items-center justify-between shadow-md">
-        <a href="/" class="text-2xl font-bold tracking-wide hover:text-[#996600] transition">COMP4321 DeepSeek Chatbot</a>
-        <a href="/" class="text-lg hover:text-[#996600] transition">Back to Home</a>
+<body class="flex text-[#003366] h-screen overflow-hidden">
+    <div class="absolute inset-0 z-0">
+        <img src="https://join.hkust.edu.hk/sites/default/files/2020-06/hkust.jpg" class="w-full h-full object-cover" alt="HKUST Background">
+        <div class="absolute inset-0 bg-white/80 backdrop-blur"></div>
     </div>
-    <div class="flex-grow flex items-center justify-center">
-        <div class="w-full max-w-xl bg-white/90 rounded-2xl shadow-2xl p-8 flex flex-col h-[75vh] border border-[#003366]/10 relative">
+
+    <div class="top-0 left-0 w-full h-[15%] z-10 absolute flex py-3 px-[7%]">
+        <a href="/" class="text-2xl font-bold flex w-fit items-center hover:text-[#996600]">COMP4321 Search Engine - Group 17</a>
+    </div>
+
+    <div class="absolute z-5 h-[75%] w-full top-[20%] flex justify-center">
+        <div class="w-full max-w-3xl rounded-lg shadow-lg p-6 mx-[7%] h-full flex flex-col">
             <div id="chat-window" class="flex-1 overflow-y-auto mb-4 border rounded-xl p-4 bg-gray-50/80 space-y-2 transition-all duration-300"></div>
-            <div class="flex mb-2">
-                <button id="clear-chat" type="button" class="ml-auto bg-red-500 hover:bg-red-700 text-white px-4 py-1 rounded shadow transition">Clear</button>
-            </div>
+
             <form id="chat-form" class="flex gap-2">
-                <input type="text" id="user-input" class="flex-grow border border-[#003366]/30 rounded-l-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#003366] bg-white/80 shadow-sm transition" placeholder="Type your message... (e.g. \"What can you do?\")" autocomplete="off" required />
+                <input type="text" id="user-input" class="flex-grow border border-[#003366]/30 rounded-l-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#003366] bg-white/80 shadow-sm transition" placeholder="Type your message..." autocomplete="off"  required />
                 <button type="submit" class="bg-[#003366] hover:bg-[#996600] text-white px-6 py-2 rounded-r-xl shadow transition">Send</button>
+                <button id="clear-chat" type="button" class="ml-auto bg-red-500 hover:bg-red-700 text-white px-6 py-1 rounded shadow transition">Clear</button>
             </form>
         </div>
     </div>
-    <script>
-    const chatWindow = document.getElementById('chat-window');
-    const chatForm = document.getElementById('chat-form');
-    const userInput = document.getElementById('user-input');
-    const clearChatBtn = document.getElementById('clear-chat');
 
-    function appendMessage(sender, text) {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = sender === 'user' ? 'flex justify-end' : 'flex justify-start';
-        const bubble = document.createElement('span');
-        bubble.className = `inline-block px-4 py-2 rounded-2xl shadow transition-all duration-200 max-w-[80%] break-words ${sender === 'user' ? 'bg-[#003366] text-white rounded-br-md animate-bounce-in-right' : 'bg-gray-200 text-gray-900 rounded-bl-md animate-bounce-in-left'}`;
-        bubble.innerHTML = text;
-        msgDiv.appendChild(bubble);
-        chatWindow.appendChild(msgDiv);
-        chatWindow.scrollTop = chatWindow.scrollHeight;
-    }
-
-    // Animations
-    const style = document.createElement('style');
-    style.innerHTML = `
-    @keyframes bounceInRight {0%{opacity:0;transform:translateX(60px);}60%{opacity:1;transform:translateX(-8px);}80%{transform:translateX(4px);}100%{transform:translateX(0);}}
-    @keyframes bounceInLeft {0%{opacity:0;transform:translateX(-60px);}60%{opacity:1;transform:translateX(8px);}80%{transform:translateX(-4px);}100%{transform:translateX(0);}}
-    .animate-bounce-in-right{animation:bounceInRight 0.5s;}
-    .animate-bounce-in-left{animation:bounceInLeft 0.5s;}`;
-    document.head.appendChild(style);
-
-    // Welcome message
-    window.addEventListener('DOMContentLoaded', () => {
-        appendMessage('bot', '<span class="font-semibold">Welcome to DeepSeek Chatbot! 💬</span><br><span class="text-gray-500">Ask me anything about the project or search engine. Try: <em>What can you do?</em></span>');
-    });
-
-    clearChatBtn.addEventListener('click', function() {
-        chatWindow.innerHTML = '';
-        appendMessage('bot', '<span class="font-semibold">Chat cleared.</span>');
-    });
-
-    chatForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const message = userInput.value.trim();
-        if (!message) return;
-        appendMessage('user', message);
-        userInput.value = '';
-        appendMessage('bot', '<span class="italic text-gray-400">Thinking...</span>');
-        const response = await fetch('/chat', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({message})
-        });
-        chatWindow.removeChild(chatWindow.lastChild);
-        if (response.ok) {
-            const data = await response.json();
-            appendMessage('bot', data.reply);
-        } else {
-            appendMessage('bot', 'Sorry, there was an error.');
-        }
-    });
-    </script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 </body>
 </html>
