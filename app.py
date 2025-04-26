@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for
 from flask_socketio import SocketIO, emit
-from model import db, Page, BodyInvertedIndex, TitleInvertedIndex
+from model import db, Page, BodyInvertedIndex, TitleInvertedIndex, DocumentStats
 from spider import crawl
 from threading import Thread
 import time
@@ -72,6 +72,7 @@ def clear_database():
     db.session.query(Page).delete()
     db.session.query(BodyInvertedIndex).delete()
     db.session.query(TitleInvertedIndex).delete()
+    db.session.query(DocumentStats).delete()
     db.session.commit()
     socketio.emit('update', {'data': 'Database cleared'})
     return redirect(url_for('spider'))

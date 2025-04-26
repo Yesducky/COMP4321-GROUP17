@@ -40,24 +40,23 @@ def calculate_tfidf(page_id, terms, phrases, session):
     page = session.query(Page).get(page_id)
 
     # Calculate TF-IDF for terms
+    # Lecture note L03 p.14 Improved Term Weights
     for term in terms:
         stem = stemmer.stem(term)
 
         # Title score
         title_entry = session.query(TitleInvertedIndex).filter_by(stem=stem, page_id=page_id).first()
         if title_entry:
-            tf_title = title_entry.frequency / page.max_tf_title if page.max_tf_title > 0 else 0
-            df_title = session.query(DocumentStats.df_title).filter_by(stem=stem).scalar() or 0
-            idf_title = math.log((total_docs + 1) / (df_title + 0.5))
-            scores['title'] += (tf_title * idf_title) * 3
+            tf_title = title_entry.frequency
+            df_title = session.query(DocumentStats.df_title).filter_by(stem=stem).scalar()
+            scores['title'] += (0.5 + 0.5 * (tf_title / page.max_tf_title)) * math.log(1 + (total_docs / df_title))
 
         # Body score
         body_entry = session.query(BodyInvertedIndex).filter_by(stem=stem, page_id=page_id).first()
         if body_entry:
-            tf_body = body_entry.frequency / page.max_tf_body if page.max_tf_body > 0 else 0
-            df_body = session.query(DocumentStats.df_body).filter_by(stem=stem).scalar() or 0
-            idf_body = math.log((total_docs + 1) / (df_body + 0.5))
-            scores['body'] += tf_body * idf_body
+            tf_body = body_entry.frequency
+            df_body = session.query(DocumentStats.df_body).filter_by(stem=stem).scalar()
+            scores['body'] += (0.5+ 0.5*(tf_body / page.max_tf_body)) *  math.log(1+(total_docs / df_body))
 
 
     # Calculate phrase scores
@@ -69,16 +68,14 @@ def calculate_tfidf(page_id, terms, phrases, session):
         title_count = get_phrase_score(phrase_terms, page_id, TitleInvertedIndex, session)
         if title_count > 0:
             df_phrase_title = session.query(DocumentStats.df_title).filter_by(stem=stemmed_phrase[0]).scalar() or 0
-            idf_phrase = math.log((total_docs + 1) / (df_phrase_title + 0.5))
-            scores['title'] += (title_count / page.max_tf_title) * idf_phrase * 6
+            scores['title'] += (0.5 + 0.5 * (title_count / page.max_tf_title)) * math.log(1 + (total_docs / df_phrase_title))
 
         # Body phrase score
         body_count = get_phrase_score(phrase_terms, page_id, BodyInvertedIndex, session)
         if body_count > 0:
             df_phrase_body = session.query(DocumentStats.df_body).filter_by(stem=stemmed_phrase[0]).scalar() or 0
-            idf_phrase = math.log((total_docs + 1) / (df_phrase_body + 0.5))
-            scores['body'] += (body_count / page.max_tf_body) * idf_phrase * 2
-
+            print(f"body_count: {body_count}, max_tf_body: {page.max_tf_body}, df_phrase_body: {df_phrase_body}")
+            scores['body'] += (0.5 + 0.5 * (body_count / page.max_tf_body)) * math.log(1 + (total_docs / df_phrase_body))
 
     return scores['title'] + scores['body']
 
