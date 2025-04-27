@@ -143,7 +143,6 @@ def search(query_string):
 
             if body_count > 0 and page.max_tf_body:
                 df_body = session.query(DocumentStats.df_body).filter_by(stem=first_stem).scalar()
-                print(df_body, phrase, body_count, page.title)
                 weight = (0.5 + 0.5 * (body_count / page.max_tf_body)) * math.log(1 + (total_docs / df_body))
                 body_scores[page_id] += weight * phrase_query_weight
                 body_lengths[page_id] += weight ** 2
