@@ -42,9 +42,28 @@ def crawl(start_url, socketio):
                         if not already_visited:
                             visited.add(url)
 
+                    page_record = session.query(Page).filter_by(url=url).first()
+                    already_visited = url in visited
+                    if page_record:
+                        # Check if the page has been modified since last crawl
+                        try:
+                            head_response = requests.head(url, timeout=5)
+                            current_modified = head_response.headers.get('Last-Modified')
+                            if current_modified and current_modified > page_record.last_modified:
+                                # Page has been updated, so we should crawl it again
+                                already_visited = False
+                            else:
+                                already_visited = True
+                        except requests.RequestException:
+                            # If we can't check, assume it hasn't changed
+                            already_visited = True
+
+                    # Mark as visited before processing to prevent race conditions
+                    if not already_visited:
+                        visited.add(url)
+
                     if already_visited:
                         continue
-
                     # Fetch page content
                     response = requests.get(url, timeout=10)
                     response.raise_for_status()

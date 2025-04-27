@@ -10,7 +10,7 @@ from indexer import parse_query
 stemmer = PorterStemmer()
 
 
-def get_phrase_score(phrase_terms, page_id, index_class, session):
+def get_phrase_count(phrase_terms, page_id, index_class, session):
     positions = {}
     for term in phrase_terms:
         stem = stemmer.stem(term)
@@ -34,54 +34,8 @@ def get_phrase_score(phrase_terms, page_id, index_class, session):
     return count
 
 
-def calculate_tfidf(page_id, terms, phrases, session):
-    total_docs = session.query(Page).count()
-    scores = {'title': 0, 'body': 0}
-    page = session.query(Page).get(page_id)
-
-    # Calculate TF-IDF for terms
-    # Lecture note L03 p.14 Improved Term Weights
-    for term in terms:
-        stem = stemmer.stem(term)
-
-        # Title score
-        title_entry = session.query(TitleInvertedIndex).filter_by(stem=stem, page_id=page_id).first()
-        if title_entry:
-            tf_title = title_entry.frequency
-            df_title = session.query(DocumentStats.df_title).filter_by(stem=stem).scalar()
-            scores['title'] += (0.5 + 0.5 * (tf_title / page.max_tf_title)) * math.log(1 + (total_docs / df_title))
-
-        # Body score
-        body_entry = session.query(BodyInvertedIndex).filter_by(stem=stem, page_id=page_id).first()
-        if body_entry:
-            tf_body = body_entry.frequency
-            df_body = session.query(DocumentStats.df_body).filter_by(stem=stem).scalar()
-            scores['body'] += (0.5+ 0.5*(tf_body / page.max_tf_body)) *  math.log(1+(total_docs / df_body))
-
-
-    # Calculate phrase scores
-    for phrase in phrases:
-        phrase_terms = re.findall(r'\w+', phrase)
-        stemmed_phrase = [stemmer.stem(t) for t in phrase_terms]
-
-        # Title phrase score
-        title_count = get_phrase_score(phrase_terms, page_id, TitleInvertedIndex, session)
-        if title_count > 0:
-            df_phrase_title = session.query(DocumentStats.df_title).filter_by(stem=stemmed_phrase[0]).scalar() or 0
-            scores['title'] += (0.5 + 0.5 * (title_count / page.max_tf_title)) * math.log(1 + (total_docs / df_phrase_title))
-
-        # Body phrase score
-        body_count = get_phrase_score(phrase_terms, page_id, BodyInvertedIndex, session)
-        if body_count > 0:
-            df_phrase_body = session.query(DocumentStats.df_body).filter_by(stem=stemmed_phrase[0]).scalar() or 0
-            print(f"body_count: {body_count}, max_tf_body: {page.max_tf_body}, df_phrase_body: {df_phrase_body}")
-            scores['body'] += (0.5 + 0.5 * (body_count / page.max_tf_body)) * math.log(1 + (total_docs / df_phrase_body))
-
-    return scores['title'] + scores['body']
-
-
-def search(query_string, session=None):
-    session = session or db.session
+def search(query_string):
+    session = db.session
     query_parts = parse_query(query_string)
 
     terms = []
@@ -94,22 +48,129 @@ def search(query_string, session=None):
 
     print(query_parts)
 
-    all_stems = {stemmer.stem(t) for t in terms}
+    # Initialize separate scores for title and body
+    title_scores = defaultdict(float)
+    body_scores = defaultdict(float)
+    title_lengths = defaultdict(float)
+    body_lengths = defaultdict(float)
+    query_vector_length = 0
+    total_docs = session.query(Page).count()
+
+    # Process each term in the query
+    for term in terms:
+        stem = stemmer.stem(term)
+
+        # Look up term in inverted index
+        title_entries = session.query(TitleInvertedIndex).filter_by(stem=stem).all()
+        body_entries = session.query(BodyInvertedIndex).filter_by(stem=stem).all()
+
+        # Skip if term not found
+        if not title_entries and not body_entries:
+            continue
+
+        # Get document frequencies
+        df_title = session.query(DocumentStats.df_title).filter_by(stem=stem).scalar()
+        df_body = session.query(DocumentStats.df_body).filter_by(stem=stem).scalar()
+
+        # Calculate query weight (IDF)
+        query_weight = math.log(1 + (total_docs / df_body))
+        query_vector_length += query_weight ** 2
+
+        # Process title postings
+        for entry in title_entries:
+            page = session.query(Page).get(entry.page_id)
+            if not page or not page.max_tf_title:
+                continue
+
+            # Calculate TF-IDF
+            tf_weight = 0.5 + 0.5 * (entry.frequency / page.max_tf_title)
+            idf_weight = math.log(1 + (total_docs / df_title))
+            weight = tf_weight * idf_weight
+
+            # Add to title score
+            title_scores[entry.page_id] += weight * query_weight
+            title_lengths[entry.page_id] += weight ** 2
+
+        # Process body postings
+        for entry in body_entries:
+            page = session.query(Page).get(entry.page_id)
+            if not page or not page.max_tf_body:
+                continue
+
+            # Calculate TF-IDF
+            tf_weight = 0.5 + 0.5 * (entry.frequency / page.max_tf_body)
+            idf_weight = math.log(1 + (total_docs / df_body))
+            weight = tf_weight * idf_weight
+
+            # Add to body score
+            body_scores[entry.page_id] += weight * query_weight
+            body_lengths[entry.page_id] += weight ** 2
+
+    # Process phrases similarly
     for phrase in phrases:
-        all_stems.update(stemmer.stem(t) for t in re.findall(r'\w+', phrase))
+        phrase_terms = re.findall(r'\w+', phrase)
+        if not phrase_terms:
+            continue
 
-    candidates = set()
-    for stem in all_stems:
-        title_matches = session.query(TitleInvertedIndex.page_id).filter_by(stem=stem).all()
-        body_matches = session.query(BodyInvertedIndex.page_id).filter_by(stem=stem).all()
-        candidates.update([m[0] for m in title_matches + body_matches])
+        # Get documents containing first term as candidates
+        first_stem = stemmer.stem(phrase_terms[0])
+        candidate_docs = set()
+        title_matches = session.query(TitleInvertedIndex.page_id).filter_by(stem=first_stem).all()
+        body_matches = session.query(BodyInvertedIndex.page_id).filter_by(stem=first_stem).all()
+        candidate_docs.update([m[0] for m in title_matches + body_matches])
 
-    doc_scores = {}
-    for page_id in candidates:
-        score = calculate_tfidf(page_id, terms, phrases, session)
-        doc_scores[page_id] = score
+        # Query weight for phrase
+        df = session.query(DocumentStats.df_body).filter_by(stem=first_stem).scalar()
+        phrase_query_weight = math.log(1 + (total_docs / df))
+        query_vector_length += phrase_query_weight ** 2
 
-    sorted_ids = sorted(doc_scores.keys(), key=lambda x: doc_scores[x], reverse=True)[:50]
+        # Check phrase in each candidate document
+        for page_id in candidate_docs:
+            page = session.query(Page).get(page_id)
+            if not page:
+                continue
+
+            # Get phrase counts
+            title_count = get_phrase_count(phrase_terms, page_id, TitleInvertedIndex, session)
+            body_count = get_phrase_count(phrase_terms, page_id, BodyInvertedIndex, session)
+
+            # Add to scores if phrase found
+            if title_count > 0 and page.max_tf_title:
+                df_title = session.query(DocumentStats.df_title).filter_by(stem=first_stem).scalar()
+                weight = (0.5 + 0.5 * (title_count / page.max_tf_title)) * math.log(1 + (total_docs / df_title))
+                title_scores[page_id] += weight * phrase_query_weight
+                title_lengths[page_id] += weight ** 2
+
+            if body_count > 0 and page.max_tf_body:
+                df_body = session.query(DocumentStats.df_body).filter_by(stem=first_stem).scalar()
+                print(df_body, phrase, body_count, page.title)
+                weight = (0.5 + 0.5 * (body_count / page.max_tf_body)) * math.log(1 + (total_docs / df_body))
+                body_scores[page_id] += weight * phrase_query_weight
+                body_lengths[page_id] += weight ** 2
+
+    # Normalize scores separately
+    query_vector_length = math.sqrt(query_vector_length)
+    final_scores = {}
+
+    # Combine normalized title and body scores (cosine similarity)
+    all_doc_ids = set(title_scores.keys()) | set(body_scores.keys())
+    for doc_id in all_doc_ids:
+        # Calculate normalized title score
+        title_score = 0
+        if doc_id in title_scores and title_lengths[doc_id] > 0:
+            title_score = title_scores[doc_id] / (math.sqrt(title_lengths[doc_id]) * query_vector_length)
+
+        # Calculate normalized body score
+        body_score = 0
+        if doc_id in body_scores and body_lengths[doc_id] > 0:
+            body_score = body_scores[doc_id] / (math.sqrt(body_lengths[doc_id]) * query_vector_length)
+
+        # Combine scores with weights (favor title more)
+        final_scores[doc_id] = title_score * 2 + body_score
+
+    # Return top results
+    sorted_ids = sorted(final_scores.keys(), key=lambda x: final_scores[x], reverse=True)[:50]
     pages = session.query(Page).filter(Page.id.in_(sorted_ids)).all()
 
-    return [(page, doc_scores[page.id]) for page in sorted(pages, key=lambda p: doc_scores[p.id], reverse=True)]
+    return [(page, final_scores[page.id]) for page in
+            sorted(pages, key=lambda p: final_scores[p.id], reverse=True)]

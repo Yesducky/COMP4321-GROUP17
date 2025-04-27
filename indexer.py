@@ -54,7 +54,6 @@ def update_inverted_index(stem_map, page_id, index_class, session):
             index_entry.positions.extend(positions)
             index_entry.frequency += freq
 
-    # Update max term frequency for the page
     page = session.query(Page).get(page_id)
     if index_class == TitleInvertedIndex:
         page.max_tf_title = max(page.max_tf_title, max_freq)
