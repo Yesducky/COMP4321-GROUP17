@@ -14,9 +14,8 @@ def crawl(start_url, socketio):
     url_queue = queue.Queue()
     url_queue.put((start_url, None))
     visited = set()
-    visited_lock = Lock()
     db_lock = Lock()
-    num_workers = 5
+    num_workers = 1
     poison_pill = (None, None)
 
     Session = sessionmaker(bind=db.engine)
@@ -26,28 +25,19 @@ def crawl(start_url, socketio):
         try:
             while True:
                 url = None
-                parent_id = None
                 try:
                     # Get URL from queue with timeout
-                    url, parent_id = url_queue.get(timeout=5)
-
+                    url, parent_id = url_queue.get(timeout=100)
                     # Check for poison pill immediately
                     if url is None:
                         break
-
-                    # Process only if not already visited
-                    with visited_lock:
-                        already_visited = url in visited or session.query(Page).filter_by(url=url).first()
-                        # Mark as visited before processing to prevent race conditions
-                        if not already_visited:
-                            visited.add(url)
 
                     page_record = session.query(Page).filter_by(url=url).first()
                     already_visited = url in visited
                     if page_record:
                         # Check if the page has been modified since last crawl
                         try:
-                            head_response = requests.head(url, timeout=5)
+                            head_response = requests.head(url, timeout=100)
                             current_modified = head_response.headers.get('Last-Modified')
                             if current_modified and current_modified > page_record.last_modified:
                                 # Page has been updated, so we should crawl it again
@@ -58,6 +48,7 @@ def crawl(start_url, socketio):
                             # If we can't check, assume it hasn't changed
                             already_visited = True
 
+
                     # Mark as visited before processing to prevent race conditions
                     if not already_visited:
                         visited.add(url)
@@ -65,7 +56,7 @@ def crawl(start_url, socketio):
                     if already_visited:
                         continue
                     # Fetch page content
-                    response = requests.get(url, timeout=10)
+                    response = requests.get(url, timeout=100)
                     response.raise_for_status()
 
                     # Parse content

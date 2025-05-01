@@ -11,7 +11,7 @@ import os
 import requests
 from flask import jsonify
 
-URL = "https://comp4321-hkust.github.io/testpages/testpage.htm"
+URL = "https://www.cse.ust.hk/~kwtleung/COMP4321/testpage.htm"
 is_crawling = False
 
 app = Flask(__name__)
