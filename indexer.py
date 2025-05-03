@@ -63,47 +63,17 @@ def update_inverted_index(stem_map, page_id, index_class, session):
 
 
 def parse_query(query):
-    explicit_phrases = []
-    remaining_terms = []
+    explicit_phrases = re.findall(r'"([^"]+)"', query.lower())
 
-    lexer = shlex.shlex(query, posix=True)
-    lexer.whitespace_split = True
-    in_phrase = False
-    current_phrase = []
+    remaining_text = re.sub(r'"[^"]+"', '', query.lower())
 
-    try:
-        while True:
-            token = lexer.get_token()
-            if token == lexer.eof:
-                break
-            if token == '"':
-                if in_phrase:
-                    explicit_phrases.append(' '.join(current_phrase).lower())
-                    current_phrase = []
-                in_phrase = not in_phrase
-            elif in_phrase:
-                current_phrase.append(token.lower())
-            else:
-                remaining_terms.append(token.lower())
-    except ValueError:
-        pass
+    remaining_terms = [t for t in re.findall(r'\w+', remaining_text) if t not in STOP_WORDS]
 
-    # all_terms = []
-    # for phrase in explicit_phrases:
-    #     all_terms.extend(re.findall(r'\w+', phrase))
-    # all_terms.extend(remaining_terms)
-
-    terms = [t for t in remaining_terms if t not in STOP_WORDS]
     ngram_phrases = []
-
     for n in [2, 3]:
-        for gram in ngrams(terms, n):
-            ngram_phrases.append(' '.join(gram))
+        if len(remaining_terms) >= n:
+            ngram_phrases.extend(' '.join(gram) for gram in ngrams(remaining_terms, n))
 
     all_phrases = list(set(explicit_phrases + ngram_phrases))
 
-    final_terms = [
-        t for t in terms
-    ]
-
-    return [('phrase', p) for p in all_phrases] + [('term', t) for t in final_terms]
+    return [('phrase', p) for p in all_phrases] + [('term', t) for t in remaining_terms]
